@@ -46,7 +46,7 @@ Before using the retrieval system, you need to perform an initial setup. This se
 This script processes the raw CSV data, chunks articles, generates embeddings, and prepares the dataset for retrieval, as well as indexes the embeddings for efficient retrieval.
 
 ```bash
-python scripts/prepare_dataset.py
+prepare_dataset
 ```
 
 ## Usage
