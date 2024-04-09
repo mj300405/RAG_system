@@ -7,44 +7,60 @@ import faiss
 import tqdm
 
 def prepare_dataset(csv_path='data/raw/medium.csv', dataset_path='./data/processed/dataset', index_path='./data/processed/index.faiss'):
+    """
+    Prepares and indexes a dataset for retrieval-augmented generation tasks.
+    
+    This function reads article data from a CSV file, preprocesses the text, 
+    generates embeddings for each chunk of the articles, and creates a FAISS index 
+    for efficient similarity search. The processed data and embeddings are saved 
+    to disk for future use.
+    
+    Args:
+        csv_path (str): Path to the raw CSV file containing the articles.
+        dataset_path (str): Path where the processed dataset should be saved.
+        index_path (str): Path where the FAISS index should be saved.
+    """
+    # Load and preprocess the dataset
     df = pd.read_csv(csv_path)
     preprocessor = Preprocessor()
 
     # Initialize the sentence transformer model for embedding generation
     model = SentenceTransformer('all-MiniLM-L6-v2')
 
-    processed_data = []
-    embeddings = []  # To store embeddings for the FAISS index
+    processed_data = []  # Stores preprocessed text data
+    embeddings = []  # Stores embeddings for indexing
 
+    # Process each article in the dataset
     for _, row in tqdm.tqdm(df.iterrows(), total=df.shape[0]):
         title = row['Title']
+        # Break articles into manageable chunks
         text_chunks = preprocessor.chunk_article(row['Text'])
 
         for chunk in text_chunks:
-            # Generate an embedding for the chunk
+            # Generate and store embeddings for each chunk
             embedding = model.encode(chunk)
             embeddings.append(embedding)
             
-            # Store the title, chunk (as text), and embedding (as list for JSON serializability)
+            # Store processed data for dataset creation
             processed_data.append({
                 'title': title,
                 'text': chunk,
-                'embeddings': embedding.tolist()
+                'embeddings': embedding.tolist()  # Convert embedding to list for serialization
             })
 
-    # Convert the processed data into a DataFrame
+    # Create a DataFrame from the processed data
     processed_df = pd.DataFrame(processed_data)
 
-    # Convert the processed DataFrame into a Hugging Face Dataset and save to disk
+    # Convert the DataFrame to a Hugging Face Dataset and save to disk
     hf_dataset = Dataset.from_pandas(processed_df)
     hf_dataset.save_to_disk(dataset_path)
 
-    # Now, create and populate the FAISS index with embeddings
-    d = len(embeddings[0])  # Dimensionality of the embeddings
-    index = faiss.IndexFlatL2(d)  # Using L2 distance for the similarity measure
-    faiss_embeddings = np.array(embeddings).astype('float32')  # Make sure to convert embeddings list to a NumPy array of type float32
-    index.add(faiss_embeddings)  # Add embeddings to the index
-    faiss.write_index(index, index_path)  # Save the index to disk
+    # Create and populate the FAISS index with article chunk embeddings
+    d = len(embeddings[0])  # Determine embedding dimensionality
+    index = faiss.IndexFlatL2(d)  # Initialize FAISS index with L2 distance metric
+    faiss_embeddings = np.array(embeddings).astype('float32')  # Convert embeddings to the correct dtype
+    index.add(faiss_embeddings)  # Add embeddings to the FAISS index
+    faiss.write_index(index, index_path)  # Save the index to disk for later retrieval
 
 if __name__ == '__main__':
     prepare_dataset()
