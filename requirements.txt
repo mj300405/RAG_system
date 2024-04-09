@@ -1,0 +1,11 @@
+numpy
+pandas
+nltk
+spacy
+swifter
+faiss-cpu
+sentence-transformers
+transformers
+datasets
+tqdm
+torch
